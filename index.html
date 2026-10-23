@@ -1147,12 +1147,18 @@ footer .top > div:first-child p{font:400 clamp(22px,1.95vw,28px)/1.15 var(--font
 #twin,#stage{display:none}
 .twin-frame,.tw-frame{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;pointer-events:none;display:block}
 .n-hero .twin-frame{z-index:1}
+/* The hero figure is a film of the twin's own yaw-sweep intro, rendered frame by
+   frame from twin/digitaltwin.html (no three.js, no GLB, no WebGL on this page).
+   Its frames are flattened onto white with the hero ground divided out, so that
+   multiply over the hero reproduces the transparent figure. contain + top-centre
+   is exactly how the embed laid out its 4:3 canvas. */
+.twin-film{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:50% 0;mix-blend-mode:multiply;z-index:1;pointer-events:none;background:transparent}
 .twin-card{display:none}
 /* the twin reads through the title: the figure's chest sits behind the words, as on the twin page */
 .n-hero-in{z-index:3}
 .n-hero .n-h1{text-shadow:0 0 40px #eef3f9,0 0 18px #eef3f9cc}
 @media (max-width:700px){
-  .twin-frame{display:none}
+  .twin-frame,.twin-film{display:none}
   .twin-card{display:block;position:absolute;left:50%;top:9%;height:84%;width:auto;max-width:none;transform:translateX(-50%);opacity:.9;z-index:1;pointer-events:none}
 }
 /* story stage: the pose lab's own ground is transparent, so the stage paints the twin field */
@@ -2422,7 +2428,18 @@ html[lang=tr] .pil2 .meas::before{content:"Ölçülenler"}
 <!-- ===================== HOME (V4 · Neko structure) ===================== -->
 <main class="page on" id="home">
 <header class="n-hero">
-  <canvas id="twin" aria-hidden="true"></canvas><iframe class="twin-frame" data-src="twin/digitaltwin.html?embed=1" title="Phenome digital twin" tabindex="-1" aria-hidden="true"></iframe><img class="twin-card" src="twin/cards/apose.webp" alt="" aria-hidden="true">
+  <canvas id="twin" aria-hidden="true"></canvas><video class="twin-film" muted playsinline preload="auto" disablepictureinpicture tabindex="-1" aria-hidden="true"><source media="(min-resolution:1.5dppx)" src="twin/film/twin-intro-2x.webm" type="video/webm"><source media="(min-resolution:1.5dppx)" src="twin/film/twin-intro-2x.mp4" type="video/mp4"><source src="twin/film/twin-intro-1x.webm" type="video/webm"><source src="twin/film/twin-intro-1x.mp4" type="video/mp4"></video><script>
+  /* The poster is the film's first frame, so the figure is on screen at once and the
+     sweep starts from exactly that picture; under reduced motion the figure is shown
+     at rest and the film never plays. Phones keep the still card below. */
+  (function(v){
+    var x = matchMedia('(min-resolution:1.5dppx)').matches ? '2x' : '1x';
+    if(matchMedia('(max-width:700px)').matches){ v.preload = 'none'; return; }
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){ v.poster = 'twin/film/twin-rest-' + x + '.webp'; v.preload = 'none'; return; }
+    v.poster = 'twin/film/twin-intro-' + x + '-poster.webp';
+    var p = v.play(); if(p && p.catch) p.catch(function(){ v.poster = 'twin/film/twin-rest-' + x + '.webp'; });
+  })(document.currentScript.previousElementSibling);
+</script><img class="twin-card" src="twin/cards/apose.webp" alt="" aria-hidden="true">
   <div class="n-hero-in">
     <h1 class="n-h1"><span data-l="en">Meet your<br><em>digital twin.</em></span><span data-l="tr">Dijital ikizinizle<br><em>tanışın.</em></span></h1>
     <a class="btn btn-ink" href="#reserve"><span data-l="en">Reserve your visit</span><span data-l="tr">Randevunuzu ayırtın</span> →</a>
@@ -3530,9 +3547,6 @@ setLang(lang); route();
   var phone = matchMedia('(max-width:700px)'), wide = matchMedia('(min-width:901px)'),
       still = matchMedia('(prefers-reduced-motion: reduce)');
   function load(f){ if(f && !f.src) f.src = f.dataset.src; }
-  var hero = document.querySelector('.twin-frame');
-  if(hero && !phone.matches) load(hero);
-  phone.addEventListener('change', function(){ if(!phone.matches) load(hero); });
 
   var sec = document.getElementById('story'); if(!sec) return;
   var frames = [].slice.call(sec.querySelectorAll('.tw-frame'));
