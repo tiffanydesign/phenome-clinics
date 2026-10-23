@@ -1184,6 +1184,9 @@ footer .credits a{display:inline;padding:0;color:#fff;text-decoration:underline}
    it to fit the width, so the frame is made twice as wide (centred, clipped by the stage)
    and the stage then fits the height instead */
 .tw-home{width:200%;left:-50%}
+/* story films: each chapter is a seamless loop recorded from the twin's pose lab with the
+   panel's own ground baked in, so a film simply covers its panel */
+.tw-film{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;pointer-events:none;display:block}
 
 /* nav: Neko's behaviour, out of the way while reading down, back as soon as the reader scrolls up */
 .nav{transition:transform .45s cubic-bezier(.16,1,.3,1),background .35s,box-shadow .35s;will-change:transform}
@@ -2478,7 +2481,7 @@ html[lang=tr] .pil2 .meas::before{content:"Ölçülenler"}
 <section class="n-pin" id="story">
   <div class="n-pin-sticky">
     <div class="n-pin-grid">
-      <div class="n-stage"><canvas id="stage" aria-hidden="true"></canvas><div class="tw-panel" data-panel="home"><iframe class="tw-frame tw-home" data-src="twin/digitaltwin.html?embed=1" title="Phenome digital twin" tabindex="-1" aria-hidden="true"></iframe></div><div class="tw-panel" data-panel="blood"><iframe class="tw-frame tw-pose" data-src="twin/digitaltwin.html?view=pose&amp;sex=male&amp;study=natural&amp;organs=none&amp;embed=1" title="Phenome digital twin, biomarker view" tabindex="-1" aria-hidden="true"></iframe></div><div class="tw-panel" data-panel="body"><iframe class="tw-frame tw-pose" data-src="twin/digitaltwin.html?view=pose&amp;sex=female&amp;study=stomach&amp;organs=liver,kidneys,stomach&amp;embed=1" title="Phenome digital twin, liver, kidneys and stomach" tabindex="-1" aria-hidden="true"></iframe></div><div class="tw-panel" data-panel="days"><iframe class="tw-frame tw-pose" data-src="twin/digitaltwin.html?view=pose&amp;sex=female&amp;study=heart&amp;organs=heart&amp;embed=1" title="Phenome digital twin, heart" tabindex="-1" aria-hidden="true"></iframe></div></div>
+      <div class="n-stage"><canvas id="stage" aria-hidden="true"></canvas><div class="tw-panel" data-panel="home"><video class="tw-film" data-film="home" muted loop playsinline preload="none" disablepictureinpicture tabindex="-1" aria-hidden="true"></video></div><div class="tw-panel" data-panel="blood"><video class="tw-film" data-film="blood" muted loop playsinline preload="none" disablepictureinpicture tabindex="-1" aria-hidden="true"></video></div><div class="tw-panel" data-panel="body"><video class="tw-film" data-film="body" muted loop playsinline preload="none" disablepictureinpicture tabindex="-1" aria-hidden="true"></video></div><div class="tw-panel" data-panel="days"><video class="tw-film" data-film="days" muted loop playsinline preload="none" disablepictureinpicture tabindex="-1" aria-hidden="true"></video></div></div>
       <div class="n-pin-text">
         <div class="n-tabs" id="ntabs"><span class="on"><span data-l="en">Genome</span><span data-l="tr">Genom</span></span><span><span data-l="en">Blood</span><span data-l="tr">Kan</span></span><span><span data-l="en">Body</span><span data-l="tr">Vücut</span></span><span><span data-l="en">Days</span><span data-l="tr">Günler</span></span></div>
         <div class="n-slides">
@@ -3527,75 +3530,44 @@ setLang(lang); route();
 
 
 <script>
-/* Digital Twin frames. Hero = the home page figure (phones keep the static card).
-   Story, as Neko's scan explainer: four chapters, each with its own figure in motion:
-     Genome  home figure, yaw sweep  (Male)
-     Blood   pose lab, Biomarker View  (Male)
-     Body    pose lab, liver -> kidneys -> stomach, on a loop  (Female)
-     Days    pose lab, the flight into the heart, on a loop  (Female)
-   One frame per panel: Body and Days are both on screen while one rises over the other.
-   The pose lab is composed for a wide window, its subject left of centre; each study is
-   re-centred in the stage (FRAME: subject centre as a share of the frame width, scale). */
+/* Digital Twin story films. Story, as Neko's scan explainer: four chapters, each with
+   its own figure in motion, recorded frame by frame from twin/digitaltwin.html:
+     Genome  home figure, yaw sweep  (Male)                      6.2 s loop
+     Blood   pose lab, Biomarker View  (Male)                    9.5 s loop, crossfaded seam
+     Body    pose lab, liver -> kidneys -> stomach  (Female)     13.8 s loop
+     Days    pose lab, out to the body, flight into the heart    7 s loop
+   The first film loads a screen ahead of the section, each next one while the chapter
+   before it is on screen, and only the chapters on screen play. */
 (function(){
-  var SWEEP_EVERY = 6200;   // the sweep runs 3.2 s, then the figure rests at its own 12 degrees
-  var ORGAN_EVERY = 4600;   // each organ: ~2 s flight in, then held
-  var HEART_EVERY = 7000;   // heart: back to the body, then the flight in again
-  var ORGANS = ['liver', 'kidneys', 'stomach'];
-  var WIDE = 2.21;          // pose frames are laid out this many stage-widths wide (a 1400 x 900 window)
-  var FRAME = {natural: [.43, .55, 1], heart: [.263, 1], apose: [.5, 1], liver: [.269, .85], kidneys: [.25, 1], stomach: [.268, 1]};   // [centre, scale, fade the cut waist]
   var W = .3;               // half-width of a chapter change, in chapters
-  var phone = matchMedia('(max-width:700px)'), wide = matchMedia('(min-width:901px)'),
-      still = matchMedia('(prefers-reduced-motion: reduce)');
-  function load(f){ if(f && !f.src) f.src = f.dataset.src; }
+  var wide = matchMedia('(min-width:901px)'), still = matchMedia('(prefers-reduced-motion: reduce)');
 
   var sec = document.getElementById('story'); if(!sec) return;
-  var frames = [].slice.call(sec.querySelectorAll('.tw-frame'));
   var P = {}; [].forEach.call(sec.querySelectorAll('.tw-panel'), function(p){ P[p.dataset.panel] = p; });
-  function fr(k){ return P[k].querySelector('iframe'); }
-  var home = fr('home'), blood = fr('blood'), body = fr('body'), days = fr('days');
-  /* one at a time: a frame builds its renderers just after load and sheds the spare
-     WebGL contexts, then the next frame opens (the browser keeps about 16 alive) */
-  frames.forEach(function(f, i){
-    if(frames[i + 1]) f.addEventListener('load', function(){ setTimeout(function(){ load(frames[i + 1]); }, 900); }, {once: true});
-  });
-  var io = new IntersectionObserver(function(es){
-    es.forEach(function(e){ if(e.isIntersecting){ load(frames[0]); io.disconnect(); } });
-  }, {rootMargin: '100% 0px'});   // start a screen ahead of the chapter (not on page open)
-  io.observe(sec);
-
-  function post(f, msg){ if(f.src && f.contentWindow) f.contentWindow.postMessage(msg, location.origin); }
-  /* place a pose frame so the study's subject sits in the middle of the stage */
-  function frame(f, study){
-    var k = FRAME[study] || [.3, 1];
-    f.style.left = (50 - k[0] * WIDE * 100) + '%';
-    f.style.transformOrigin = k[0] * 100 + '% 50%';
-    f.style.transform = k[1] === 1 ? 'none' : 'scale(' + k[1] + ')';
-    /* the Biomarker View is cut at the waist; scaled down, that edge would show */
-    f.style.webkitMaskImage = f.style.maskImage = k[2] ? 'linear-gradient(#000 62%, transparent 92%)' : 'none';
+  var films = [].slice.call(sec.querySelectorAll('.tw-film'));
+  var x = matchMedia('(min-resolution:1.5dppx)').matches ? '2x' : '1x';
+  films.forEach(function(v){ v.poster = 'twin/film/story-' + v.dataset.film + '-' + x + '.webp'; });
+  var near = false;
+  function loadFilm(v){
+    if(!v || v.dataset.on || still.matches) return;   // reduced motion: the posters are the figures
+    v.dataset.on = '1';
+    var base = 'twin/film/story-' + v.dataset.film + '-' + x;
+    v.innerHTML = '<source src="' + base + '.webm" type="video/webm"><source src="' + base + '.mp4" type="video/mp4">';
+    v.preload = 'auto'; v.load();
   }
-  function study(f, s){ frame(f, s); post(f, {pose: s}); }
-
-  /* Genome: the home figure, male, its sweep replayed */
-  function sweep(){ post(home, {home: 'Male'}); }
-  setInterval(sweep, SWEEP_EVERY);
-  home.addEventListener('load', function(){ setTimeout(sweep, 2500); });   // the rig is published just after load
-
-  /* Blood: the Biomarker View, male; it moves on its own */
-  frame(blood, 'natural');
-
-  /* Body: liver, kidneys, stomach, round and round */
-  /* it opens on the stomach: every organ after that arrives by its flight, framed alike
-     (an organ opened directly sits elsewhere in the pose lab's window) */
-  var organ = 2;
-  frame(body, 'stomach');
-  setInterval(function(){ organ = (organ + 1) % ORGANS.length; study(body, ORGANS[organ]); }, ORGAN_EVERY);
-
-  /* Days: out to the body, then the flight into the heart again */
-  frame(days, 'heart');
-  setInterval(function(){
-    study(days, 'apose');
-    setTimeout(function(){ study(days, 'heart'); }, 1600);
-  }, HEART_EVERY);
+  new IntersectionObserver(function(es){
+    es.forEach(function(e){ near = e.isIntersecting; if(near) loadFilm(films[0]); if(!near){ films.forEach(function(v){ v.pause(); }); on = [false, false, false, false]; } });
+  }, {rootMargin: '100% 0px'}).observe(sec);   // a screen ahead of the chapter (not on page open)
+  /* play what can be seen: a panel shows once it has begun to rise and until the next has covered it */
+  var on = [false, false, false, false];
+  function play(u){
+    films.forEach(function(v, i){
+      var vis = near && (i === 0 || u[i] > 0) && (i === 3 || u[i + 1] < 1);
+      if(vis){ loadFilm(v); loadFilm(films[i + 1]); }
+      if(vis === on[i] || !v.dataset.on) return; on[i] = vis;
+      if(vis){ var p = v.play(); if(p && p.catch) p.catch(function(){}); } else v.pause();
+    });
+  }
 
   /* titles: every word in its own mask; words are grouped into lines after layout */
   var slides = [].slice.call(sec.querySelectorAll('.n-slide'));
@@ -3654,6 +3626,7 @@ setLang(lang); route();
 
     /* figures: each next panel rises over the last */
     ['home', 'blood', 'body', 'days'].forEach(function(k, i){ P[k].style.zIndex = i + 1; rise(P[k], i ? ease(u[i]) : 1); });
+    play(u);
 
     /* text: the old chapter fades, the new title rises line by line, its line follows */
     if(!lines.length) measure();
