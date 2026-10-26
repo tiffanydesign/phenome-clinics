@@ -1214,6 +1214,13 @@ footer .top{background:var(--field-surface)}
    twin's inner glow and its lit top edge. */
 :root{--ph-accent:#2b4796;--ph-accent-hover:#24408a;--ph-accent-active:#1c3579;--ph-accent-link:#2b4796;
   --dt-primary:linear-gradient(180deg,#2b4796,#1c3579)}
+/* scrollbar: designexplore's — no track, an inset Blue 200 pill, Blue 300 under the cursor */
+html{scrollbar-width:thin;scrollbar-color:var(--phenome-blue-200) transparent}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--phenome-blue-200);background-clip:content-box;border:3px solid transparent;border-radius:980px}
+::-webkit-scrollbar-thumb:hover{background:var(--phenome-blue-300);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
 .btn,.btn-ink,.btn-light,.n-link::before,.mem .badge,.opts input:checked + span,.ok .tick,.pd i.on{
   background:var(--dt-primary);box-shadow:0 1px 3px -1px #0a1e5747,inset 0 0 12px -6px #ffffff70}
 .btn:hover,.btn-ink:hover,.btn-light:hover,.btn-ghost:hover,.dark .btn-ghost:hover,.n-link:hover::before{
